@@ -21,7 +21,47 @@ library(wordcloud)
 ```
 
 ### 2.2 Source and load the data
-Initiallly navigated to the working directory to load the data.  As the data files were very large a binomial function is used to sample from each dataset.  Seeds were set to ensure that this sampling is reproducable. The sampled data were written to a text file so that it could be loaded as the script is re-run.  This was done for efficiency to facilitate quicker running of the analysis when working through the exploratory analysis. Shown below is the code chunk for loading and sampling the News data.  This was similarly implemented for the Blogs, and the Twitter data, but in the interests of keeping this documetn brief, this code is not reproduced on this report using echo set to FALSE in knitr. Source code for this entire document is available at the link in Section 6: Supporting Data.  
+#### 2.2.1 Structure and Size of Raw data
+From the working directory the data was loaded. It was found that all three data files were comprised of text strings that could be easily loaded as character vectors.  The entire data files were loaded initially in order to count the number of text strings (or phrases) in each file.      
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+setwd('~/datsci/coursework/10.Cap/data/Coursera-SwiftKey/final/')
+
+#Raw Data Files 
+file1 <- "./en_US/en_US.news.txt"
+file2 <- "./en_US/en_US.blogs.txt"
+file3 <- "./en_US/en_US.twitter.txt"
+
+newsDat <- readLines(file1)
+blogsDat <- readLines(file2)
+twitDat <- readLines(file3)
+
+wNews <- 0
+for(i in 1:length(newsDat)){
+  wNews <- wNews + length(strsplit(newsDat[i], " ")[[1]])
+}
+
+wBlogs <- 0
+for(i in 1:length(blogsDat)){
+  wBlogs <- wBlogs + length(strsplit(blogsDat[i], " ")[[1]])
+}
+
+wTweet <- 0
+for(i in 1:length(twitDat)){
+  wTweet <- wTweet + length(strsplit(blogsDat[i], " ")[[1]])
+}
+
+```
+
+The number of text strings (or phrases) contained in each data file are detailed below.  Additionally, the total count of words containd in each of the three files are presented.  Note that the word count is presented in millions of words.
+
+Data Source | # Phrases          | # Words (Millions)
+------------|--------------------|---------
+News        |`r length(newsDat)` | `r wNews/1000000`
+Blogs       |`r length(blogsDat)`| `r wBlogs/1000000`
+Twitter     |`r length(twitDat)` | `r wTweet/1000000`
+
+#### 2.2.2 Randomly Sampling the Raw Data using a Binomial Function
+As the data files were very large a binomial function was used to randomly sample from each dataset.  Seeds were set to ensure that this sampling is reproducable. The sampled data were written to a text file so that it could be loaded as the script is re-run.  This was done for efficiency to facilitate quicker running of the analysis when working through the exploratory analysis. Shown below is the code chunk for loading and sampling the News data.  This was similarly implemented for the Blogs, and the Twitter data, but in the interests of keeping this documetn brief, this code is not reproduced on this report using echo set to FALSE in knitr. Source code for this entire document is available at the link in Section 6: Supporting Data.  
 
 ```{r Navigate to wd and read data into memory}
 setwd('~/datsci/coursework/10.Cap/data/Coursera-SwiftKey/final/')
@@ -181,7 +221,7 @@ rm(allDat, swearWords, enCorp)
 ```
 
 ### 3.2 Preparing N-Grams for N = 1, 2, & 3
-In order to better understand the analysis the sampled data was tokenized, and N-Grams were prepared for N = 1, 2 & 3.  An N-Gram is a string of words (tokens) as they appear sequentially in the text.  The N-Grams were calculated by looping over the cleaned, sampled data and assigning the N-Grams to three separate character vectors as detailed below.   
+In order to better understand the analysis the sampled data was tokenized, and N-Grams were prepared for N = 1, 2 & 3.  An N-Gram is a string of words (tokens) as they appear sequentially in the text.  The N-Grams were calculated by looping over the cleaned, sampled data and assigning the N-Grams to three separate character vectors as detailed below. ngrams application from the NLP package as used to calculate the N-Grams.    
 
 ```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 #Calculate the N-Grams for analysis
