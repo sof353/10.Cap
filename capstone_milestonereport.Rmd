@@ -9,7 +9,7 @@ This report overviews the structure of the data for a large collection of text s
 
 Data was downloaded from the archive and stored locally in advance of beginning this analysis. 
 
-## 2. Data Processing
+## 2. Loadng Files & Pre-Processing Data 
 ### 2.1 Setting global default options for document
 Define global settings and load all libraries required to proces the R-code used in this report. This report was prepared in Rmd and processed to HTML using the knitr package.  Other packaages were also used to perform various steps in preparing teh data and the analysis; tm and NLP were used for processing the text in the data and ggplot2 and wordcloud were used for visualizing the data.   
 ```{r setoptions, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
@@ -61,7 +61,7 @@ Blogs       |`r length(blogsDat)`| `r wBlogs/1000000`
 Twitter     |`r length(twitDat)` | `r wTweet/1000000`
 
 #### 2.2.2 Randomly Sampling the Raw Data using a Binomial Function
-As the data files were very large a binomial function was used to randomly sample from each dataset.  Seeds were set to ensure that this sampling is reproducable. The sampled data were written to a text file so that it could be loaded as the script is re-run.  This was done for efficiency to facilitate quicker running of the analysis when working through the exploratory analysis. Shown below is the code chunk for loading and sampling the News data.  This was similarly implemented for the Blogs, and the Twitter data, but in the interests of keeping this documetn brief, this code is not reproduced on this report using echo set to FALSE in knitr. Source code for this entire document is available at the link in Section 6: Supporting Data.  
+As the data files were very large a binomial function was used to randomly sample from each dataset.  Seeds were set to ensure that this sampling is reproducable. The sampled data were written to a text file so that it could be loaded as the script is re-run.  This was done for efficiency to facilitate quicker running of the analysis when working through the exploratory analysis. Shown below is the code chunk for loading and sampling the News data.  This was similarly implemented for the Blogs, and the Twitter data, but in the interests of keeping this document brief, this code is not reproduced on this report using echo set to FALSE in knitr. Source code for this entire document is available at the link in Section 6: Supporting Data.  
 
 ```{r Navigate to wd and read data into memory}
 setwd('~/datsci/coursework/10.Cap/data/Coursera-SwiftKey/final/')
