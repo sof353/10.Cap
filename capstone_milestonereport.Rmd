@@ -1,0 +1,299 @@
+---
+title: "Data Science Capstone Milestone Report"
+author: "sof, 11/27/2016"
+output: html_document
+keep_md: true
+---
+## 1. Introduction
+This report overviews the structure of the data for a large collection of text scraped from News, Blogs, and Twitter posts.  N-Grams are prepared and used to analyze how frequently different words appear or are sequentially put together in the body of the text. This work forms the foundation for building a prediction model whereby the next word will be predicted based upon the preceeding words that have been typed by a user.
+
+Data was downloaded from the archive and stored locally in advance of beginning this analysis. 
+
+## 2. Data Processing
+### 2.1 Setting global default options for document
+Define global settings and load all libraries required to proces the R-code used in this report. This report was prepared in Rmd and processed to HTML using the knitr package.  Other packaages were also used to perform various steps in preparing teh data and the analysis; tm and NLP were used for processing the text in the data and ggplot2 and wordcloud were used for visualizing the data.   
+```{r setoptions, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo=TRUE, results='asis')
+library(tm)
+library(NLP)
+library(ggplot2)
+library(wordcloud)
+```
+
+### 2.2 Source and load the data
+Initiallly navigated to the working directory to load the data.  As the data files were very large a binomial function is used to sample from each dataset.  Seeds were set to ensure that this sampling is reproducable. The sampled data were written to a text file so that it could be loaded as the script is re-run.  This was done for efficiency to facilitate quicker running of the analysis when working through the exploratory analysis. Shown below is the code chunk for loading and sampling the News data.  This was similarly implemented for the Blogs, and the Twitter data, but in the interests of keeping this documetn brief, this code is not reproduced on this report using echo set to FALSE in knitr. Source code for this entire document is available at the link in Section 6: Supporting Data.  
+
+```{r Navigate to wd and read data into memory}
+setwd('~/datsci/coursework/10.Cap/data/Coursera-SwiftKey/final/')
+rm(list=ls())
+
+#Raw Data Files 
+file1 <- "./en_US/en_US.news.txt"
+
+# NEWS DATA & SAMPLING
+# Create a sampled News file using 1% of the original data
+# Check if the samples file already exists - if so read sampled data, if not create it 
+
+if(!file.exists('./en_US/samp_news.txt')){
+  #Open file connection to News
+  con1 <- file(file1, "r") 
+  samp_news <- as.character(c())
+  l1 <-1 
+
+  #Sample the Data and set.seed so this step is repeatable
+  set.seed(100)
+  while(length(l1) > 0) {
+    l1 <- readLines(con1, 1)
+    if(rbinom(1,1,0.01) == 1){
+      samp_news <- append(samp_news, l1)
+      }  
+    }
+close(con1)
+
+# Write the sample file for use later
+writeLines(samp_news, "en_US/samp_news.txt", sep = "\n")
+} else{
+  samp_news <- readLines('en_US/samp_news.txt')
+}
+```
+
+```{r echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+setwd('~/datsci/coursework/10.Cap/data/Coursera-SwiftKey/final/')
+file2 <- "./en_US/en_US.blogs.txt"
+file3 <- "./en_US/en_US.twitter.txt"
+
+# BLOGS DATA & SAMPLING
+# Create a sampled Blogs file using 0.2% of the original data
+# Check if the samples file already exists - if so read sampled data, if not create it 
+
+if(!file.exists('en_US/samp_blog.txt')){
+  #Open file connection to Blogs
+  con2 <- file(file2, "r") 
+  samp_blog <- as.character(c())
+  l1 <-1 
+  
+  #Sample the Data and set.seed so this step is repeatable
+  set.seed(200)
+  while(length(l1) > 0) {
+    l1 <- readLines(con2, 1)
+    if(rbinom(1,1,0.002) == 1){
+      samp_blog <- append(samp_blog, l1)
+      }  
+    }
+  close(con2)
+  
+  # Write the reduced and sampled file for use later
+  writeLines(samp_blog, "en_US/samp_blog.txt", sep = "\n")
+} else{
+  samp_blog <- readLines('en_US/samp_blog.txt')
+}
+
+
+# TWITTER DATA & SAMPLING
+# Create a sample Twitter file using 0.1% of the original data
+# Check if the samples file already exists - if so read sampled data, if not create it 
+
+if(!file.exists('./en_US/samp_tw.txt')){
+  con3 <- file(file3, "r") 
+  samp_tw <- as.character(c())
+  l1 <-1 
+  
+  #Sample the Data and set.seed so this step is repeatable
+  set.seed(300)
+  while(length(l1) > 0) {
+    l1 <- readLines(con3, 1)
+      if(rbinom(1,1,0.001) == 1){
+        samp_tw <- append(samp_tw, l1)
+      }  
+    }
+  
+  close(con3)
+
+  # Write the sample file for use later
+  writeLines(samp_tw, "en_US/samp_tw.txt", sep = "\n")
+
+} else{
+  samp_tw <- readLines('en_US/samp_tw.txt')
+}
+
+```
+
+### 2.3 Pre-processing Data 
+#### 2.3.1 Combining samples data from all three sources
+The the three data samples were combined to a single character vector prior to any analysis.  One would generally expect different uses of language from sources as different as news, blogs and Twitter, for example, news would likely be more grammatically correct and precise whereas Twitter posts would likely be less grammatically correct and use more colloquialisms. However, it was felt that any useful prediction model should be capable of combining components from all three sources and delivering results.  From this point onwards combined data samples from all three sources was utilized.   
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+#Combine data into a single character vector - remove the separate components parts to save memory
+allDat <- c(samp_blog, samp_news, samp_tw)
+rm(samp_blog, samp_news, samp_tw)
+```
+
+#### 2.3.2 Preparing a profanity filter
+A profanity filter was created using a list of words sourced from a site detailed below, see link in Section 6: Supporting Data    
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+#Borrow data for profanity filtering / swear words from web source found using search engine
+setwd('~/datsci/coursework/10.Cap/data/Coursera-SwiftKey/final/')
+if(!file.exists('./en_US/swearWords.txt')){
+  con4 <- file("http://www.bannedwordlist.com/lists/swearWords.txt", "r")
+  swearWords <- tolower(readLines(con4))
+  close(con4)
+  
+  # Write the swearWords file locally for use later
+  writeLines(swearWords, "en_US/swearWords.txt", sep = "\n")
+} else {
+  swearWords <- tolower(readLines('./en_US/swearWords.txt'))
+}
+```
+
+## 3. Data Processing
+### 3.1 Cleaning the Data
+The tm package was used for procesing the data.  The sampled data was converted to a corpus and then several text cleaning activities were performed to remove numbers, punctuation, URL's, other non-letter characters and white-spaces.  Any character strings in the sampled data that began with a space were also modified to remove the space to ensure that the N-Grams prepared later would not start with a space.  A couple of custom functions were written to facilitate the cleaning of the text, and these are detailed below.  Additionally, the profanity filter that was prepared in section 2.3.2 was applied to remove these words from the sampled data.  Finally, the cleaned data was converted back into a data frame.    
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+#Text Cleaning using tm package
+#Function to remve URL's
+removeURL <- function(x){
+  gsub("http[^[:space:]]*", "", x)
+}
+#Function to remove non-letters (except spaces)
+removeNonAlphas <- function(x){
+  gsub("[^[:alpha:][:space:]]*", "", x)
+}
+#Function to remove a space at the start of a sentence/phrase
+removeSpaceStarts <- function(x){
+  gsub("^ +", "", x)
+}
+
+enCorp <- Corpus(VectorSource(allDat)) #Create a corpus
+enCorp <- tm_map(enCorp, content_transformer(tolower)) #change to all lower case
+enCorp <- tm_map(enCorp, removeNumbers)               #remove numbers
+enCorp <- tm_map(enCorp, removePunctuation)           #remove punctuation
+enCorp <- tm_map(enCorp, removeWords, swearWords)     #apply profanity filtering removing words
+enCorp <- tm_map(enCorp, content_transformer(removeURL))  #Remove URL's
+enCorp <- tm_map(enCorp, content_transformer(removeNonAlphas)) #remove non-letters
+enCorp <- tm_map(enCorp, content_transformer(removeSpaceStarts)) #remove spaces at start of sentences
+enCorp <- tm_map(enCorp, stripWhitespace)             #strip whitespace
+
+df_allData <- data.frame(text=unlist(sapply(enCorp, `[`, "content")), stringsAsFactors=F)
+
+#clean-up data no longer required
+rm(allDat, swearWords, enCorp)
+```
+
+### 3.2 Preparing N-Grams for N = 1, 2, & 3
+In order to better understand the analysis the sampled data was tokenized, and N-Grams were prepared for N = 1, 2 & 3.  An N-Gram is a string of words (tokens) as they appear sequentially in the text.  The N-Grams were calculated by looping over the cleaned, sampled data and assigning the N-Grams to three separate character vectors as detailed below.   
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+#Calculate the N-Grams for analysis
+
+#Initialize character vectors
+x1grams <- as.character(c())
+x2grams <- as.character(c())
+x3grams <- as.character(c())
+
+for(i in 1:nrow(df_allData)){
+  w <- strsplit(df_allData[i,1], " ", fixed = TRUE)[[1L]]
+  
+  #1-Grams
+  x1grams <- append(x1grams, w)
+  
+  #2-Grams
+  ngs <- vapply(ngrams(w, 2L), paste, "", collapse = " ")
+  x2grams <- append(x2grams, ngs) 
+  
+  #3-grams
+  ngs <- vapply(ngrams(w, 3L), paste, "", collapse = " ")
+  x3grams <- append(x3grams, ngs) 
+}
+
+#Cean up environment
+rm(i, ngs, w)
+```
+
+## 4. Results
+It was decided to not remove stopwords from the data as these would normally make up large parts of the narrative being used in everyday usage. For each of the N-Gram sizes below histogram with the 30 most frequently used N-Grams in the selected data is presented.  Additionally a word cloud is presented for each N-Gram category to aid with the visualization.  Cut-off minimum frequencies are used in the preparation of the wordcloud to minimuze computation time for the images.  
+
+### 4.1 N-Grams for N = 1
+```{r echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+#Single word frequency 1-grams - plot top 50 terms
+df_x1grams <- data.frame(table(x1grams))
+df_x1grams <- df_x1grams[order(df_x1grams[,2], decreasing = TRUE),]
+```
+In the histogram the 30 most frequently used 1-Grams terms are presented, the minimum frequency cutoff for the wordcloud was set to 40.   
+```{r Figure1.1gram.frequency, fig.width=8, fig.height=6, echo=FALSE}
+ggplot(head(df_x1grams, 30), aes(x=reorder(x1grams, Freq), y=Freq)) + 
+  geom_bar(stat="identity") + xlab("Terms") + ylab("Count") + coord_flip() +
+  ggtitle("Frequency of 1-Grams (Words) in Sampled Data")
+
+wordcloud(words=df_x1grams[,1], freq=df_x1grams[,2], min.freq=35, random.order=F)
+```
+
+### 4.2 N-Grams for N = 2
+```{r echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+#N-grams for N=2
+df_x2grams <- data.frame(table(x2grams))
+df_x2grams <- df_x2grams[order(df_x2grams[,2], decreasing = TRUE),]
+```
+In the histogram the 30 most frequently used 1-Grams terms are presented, the minimum frequency cutoff for the wordcloud was set to 25.  
+```{r Figure2.2gram.frequency, fig.width=8, fig.height=6, echo=FALSE}
+ggplot(head(df_x2grams, 30), aes(x=reorder(x2grams, Freq), y=Freq)) + 
+  geom_bar(stat="identity") + xlab("Terms") + ylab("Count") + coord_flip() +
+  ggtitle("Frequency of 2-Grams (2 Word Combinations) in Sampled Data")
+
+wordcloud(words=df_x2grams[,1], freq=df_x2grams[,2], min.freq=25, random.order=F)
+```
+
+### 4.3 N-Grams for N = 2
+```{r echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+#N-grams for N=3
+df_x3grams <- data.frame(table(x3grams))
+df_x3grams <- df_x3grams[order(df_x3grams[,2], decreasing = TRUE),]
+head(df_x3grams)
+```
+In the histogram the 30 most frequently used 1-Grams terms are presented, the minimum frequency cutoff for the wordcloud was set to 12.  
+```{r Figure3.3gram.frequency, fig.width=8, fig.height=6, echo=FALSE}
+ggplot(head(df_x3grams, 30), aes(x=reorder(x3grams, Freq), y=Freq)) + 
+  geom_bar(stat="identity") + xlab("Terms") + ylab("Count") + coord_flip() +
+  ggtitle("Frequency of 3-Grams (3 Word Combinations) in Sampled Data")
+
+wordcloud(words=df_x3grams[,1], freq=df_x3grams[,2], min.freq=12, random.order=F)
+```
+
+### 4.4 Word count required to cover a specific percentage of all word instances in the sampled data
+The sampled data contains about 18k unique words. However, in the pervious section it was learned that the most frequently appearing words occur far more often than the less frequently appearing words. By converting the frequency of each term to an overall percentage usage and summing the cumulative percentages across the 1-Gram term-frequency data it can be seen that a very low number of words make up 50% or 90% of all words used in the sampled data.  This fact will be utilized later to truncate the term-frquency data in the interests of memory efficiency when building a prediction model.  
+
+```{r echo=TRUE, results='asis', message=FALSE, warning=FALSE}
+#Qustion in Task 2 asks for approximate words required to account for 50% of the texxt & 90% of the text
+df_questions <- df_x1grams
+df_questions$pctUsage <- df_x1grams$Freq/sum(df_x1grams$Freq)
+
+#50% word count
+cumlSumPct <- 0
+wrdCount <- 0
+while(cumlSumPct < 0.5){
+  wrdCount <- wrdCount + 1
+  cumlSumPct <- cumlSumPct + df_questions$pctUsage[wrdCount]
+}
+paste(wrdCount, "unique words are required to cover 50% of the words in the sampled data")
+
+#90% word count
+cumlSumPct <- 0
+wrdCount <- 0
+while(cumlSumPct < 0.9){
+  wrdCount <- wrdCount + 1
+  cumlSumPct <- cumlSumPct + df_questions$pctUsage[wrdCount]
+}
+paste(wrdCount, "unique words are required to cover 90% of the words in the sampled data")
+```
+
+## 5. Next Steps
+The development of a prediction model is the ultimate goal and the following methodology will be employed.
+
+The model will be built using N-grams where reference data will be stored for N = 1 to N = 3 (or N = 4).  Ultimately, 4 will be selected as the largest length N-Grams if it produces an appreciable improvement over N=3, and N = 5 only if that produced an apppreciable improvement over N = 4, etc.  In general the input text string will be split into its individual words and counted. If the number of words in longer than the maximum length of the N-gram reference data the most recent words in the phrase will be sleected and the most likely outcomes presented.  The most frequent instances in each of the N-Gram categories will be retained in the model to drive efficiency.  For example, in the 2-gram 'of the' is considered, only the most frequent 3-grams that occur following this beginning will be retained in the final model.  The less frequent occurances will not be retained in teh interests of efficiency.  This is currently under developent.  
+
+## 6. Supporting Data
+Source code for this report is availlable at 
+git commit -m "first commit"
+
+Words used in profanity filter were sourced from 
+http://www.bannedwordlist.com/lists/swearWords.txt
