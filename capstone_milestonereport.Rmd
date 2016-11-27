@@ -293,7 +293,7 @@ The model will be built using N-grams where reference data will be stored for N 
 
 ## 6. Supporting Data
 Source code for this report is availlable at 
-git commit -m "first commit"
+[https://github.com/sof353/10.Cap](https://github.com/sof353/10.Cap)
 
 Words used in profanity filter were sourced from 
-http://www.bannedwordlist.com/lists/swearWords.txt
+[http://www.bannedwordlist.com/lists/swearWords.txt](http://www.bannedwordlist.com/lists/swearWords.txt)
